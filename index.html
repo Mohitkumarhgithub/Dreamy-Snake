@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Dreamy Snake</title>
+<meta name="theme-color" content="#172554">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+    /* ---------- Mood colors (default = Midnight Calm) ---------- */
+    body {
+        --bg-grad: linear-gradient(135deg, #0b1230 0%, #172554 45%, #2a1b4d 100%);
+        --b1: #7c5cff; --b2: #00b4d8; --b3: #ff5fa2; --b4: #3a86ff; --b5: #2de2a6; --blob-op: 0.55;
+        --text: #ffffff; --tshadow: 0 2px 4px rgba(0,0,0,0.3);
+        --glass-a: rgba(255,255,255,0.18); --glass-b: rgba(255,255,255,0.05); --glass-border: rgba(255,255,255,0.3);
+        --canvas-bg: rgba(6,10,32,0.6); --grid: rgba(255,255,255,0.045);
+        --chip: rgba(0,0,0,0.35); --sel-bg: rgba(255,255,255,0.18); --opt: #172554;
+    }
+    body[data-theme="blush"] {
+        --bg-grad: linear-gradient(45deg, #ff9a9e 0%, #fad0c4 99%);
+        --b1: #ffb3c1; --b2: #ffd6a5; --b3: #fbc2eb; --b4: #cdb4db; --b5: #ffc8dd; --blob-op: 0.8;
+        --text: #4a2030; --tshadow: 0 1px 0 rgba(255,255,255,0.6);
+        --glass-a: rgba(255,255,255,0.5); --glass-b: rgba(255,255,255,0.22); --glass-border: rgba(255,255,255,0.75);
+        --canvas-bg: rgba(60,25,45,0.78); --grid: rgba(255,255,255,0.07);
+        --chip: rgba(255,255,255,0.55); --sel-bg: rgba(255,255,255,0.7); --opt: #ffd6dc;
+    }
+    body[data-theme="flower"] {
+        --bg-grad: linear-gradient(135deg, #14301f 0%, #25513a 50%, #4a3358 100%);
+        --b1: #7bd389; --b2: #ff9ecb; --b3: #ffd6e8; --b4: #a8e6a1; --b5: #c9a7ff; --blob-op: 0.5;
+        --canvas-bg: rgba(8,30,18,0.66); --opt: #25513a;
+    }
+    body[data-theme="ocean"] {
+        --bg-grad: linear-gradient(135deg, #031c2c 0%, #05405f 50%, #0a6c8f 100%);
+        --b1: #00b4d8; --b2: #48cae4; --b3: #0077b6; --b4: #90e0ef; --b5: #3a86ff; --blob-op: 0.5;
+        --canvas-bg: rgba(2,18,34,0.68); --opt: #05405f;
+    }
+    body[data-theme="rose"] {
+        --bg-grad: linear-gradient(135deg, #34183f 0%, #5e2a55 50%, #8f3f69 100%);
+        --b1: #ff8fab; --b2: #fb6f92; --b3: #ffc2d1; --b4: #cdb4db; --b5: #ffafcc; --blob-op: 0.5;
+        --canvas-bg: rgba(36,10,36,0.66); --opt: #5e2a55;
+    }
+    body[data-theme="iron"] {
+        --bg-grad: linear-gradient(135deg, #0e1319 0%, #1c2733 50%, #12302c 100%);
+        --b1: #2a9d8f; --b2: #457b9d; --b3: #264653; --b4: #e9c46a; --b5: #3d5a80; --blob-op: 0.45;
+        --canvas-bg: rgba(6,10,14,0.72); --opt: #1c2733;
+    }
+
+    /* ---------- Page: no scrolling, no zoom ---------- */
+    html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        touch-action: none;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: var(--bg-grad);
+    }
+
+    /* ---------- Moving glass background ---------- */
+    .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+    .bg span {
+        position: absolute; border-radius: 50%;
+        filter: blur(60px);
+        opacity: var(--blob-op);
+        transition: background-color 1.6s ease, opacity 1.6s ease;
+        animation: floatBlob 18s infinite alternate ease-in-out;
+    }
+    .bg span:nth-child(1) { width: 45vmax; height: 45vmax; background: var(--b1); top: -12%; left: -10%; }
+    .bg span:nth-child(2) { width: 38vmax; height: 38vmax; background: var(--b2); top: 35%; right: -12%; animation-duration: 24s; animation-delay: -6s; }
+    .bg span:nth-child(3) { width: 34vmax; height: 34vmax; background: var(--b3); bottom: -14%; left: 15%; animation-duration: 21s; animation-delay: -3s; }
+    .bg span:nth-child(4) { width: 28vmax; height: 28vmax; background: var(--b4); top: 8%; right: 25%; animation-duration: 27s; animation-delay: -10s; }
+    .bg span:nth-child(5) { width: 24vmax; height: 24vmax; background: var(--b5); bottom: 5%; right: 8%; animation-duration: 30s; animation-delay: -14s; }
+    @keyframes floatBlob {
+        0%   { transform: translate(0, 0) scale(1); }
+        50%  { transform: translate(8vmax, -6vmax) scale(1.15); }
+        100% { transform: translate(-6vmax, 7vmax) scale(0.95); }
+    }
+
+    /* ---------- Glass card sized to the screen ---------- */
+    .game-container {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        width: min(calc(100vw - 16px), 620px);
+        height: calc(100vh - 16px);
+        height: min(calc(100dvh - 16px), 900px);
+        padding: 12px;
+        background: linear-gradient(135deg, var(--glass-a), var(--glass-b));
+        backdrop-filter: blur(22px) saturate(170%);
+        -webkit-backdrop-filter: blur(22px) saturate(170%);
+        border: 1px solid var(--glass-border);
+        border-radius: 28px;
+        box-shadow: 0 25px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.45), inset 0 0 30px rgba(255,255,255,0.05);
+        text-align: center;
+        transition: box-shadow 0.4s ease;
+    }
+    .game-container::before {
+        content: ""; position: absolute; inset: 0; border-radius: inherit;
+        background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.14) 48%, transparent 60%);
+        background-size: 260% 100%;
+        animation: sheen 10s infinite ease-in-out;
+        pointer-events: none;
+    }
+    @keyframes sheen { 0% { background-position: 130% 0; } 100% { background-position: -30% 0; } }
+    .game-container.hit { box-shadow: 0 0 0 4px rgba(255,77,77,0.55), 0 20px 50px rgba(255,77,77,0.35); }
+    .game-container.bonus { box-shadow: 0 0 0 4px rgba(120,255,170,0.6), 0 20px 50px rgba(120,255,170,0.35); }
+
+    .header-bar {
+        flex: none; display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 10px; color: var(--text); font-weight: bold; text-shadow: var(--tshadow);
+    }
+    .score-board { font-size: 19px; }
+    .lives-board {
+        font-size: 17px; background: var(--chip); border: 1px solid var(--glass-border);
+        padding: 4px 11px; border-radius: 12px; display: flex; gap: 4px; align-items: center;
+    }
+    .heart { display: inline-block; }
+    .lives-board.wave .heart { animation: heartWave 0.9s ease-in-out 2; }
+    .lives-board.wave .heart:nth-child(2) { animation-delay: 0.15s; }
+    .lives-board.wave .heart:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes heartWave {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-8px) scale(1.35); }
+    }
+
+    .controls-bar {
+        flex: none; display: flex; justify-content: center; align-items: center; flex-wrap: wrap;
+        gap: 8px; margin-bottom: 10px; color: var(--text); font-size: 13px; font-weight: 600;
+    }
+    select {
+        background: var(--sel-bg); border: 1px solid var(--glass-border); color: var(--text);
+        padding: 6px 8px; border-radius: 10px; font-weight: bold; font-size: 13px; outline: none; cursor: pointer;
+    }
+    select option { background: var(--opt); color: var(--text); }
+    @media (max-width: 480px) { .controls-bar span { display: none; } }
+
+    /* ---------- Playable area: biggest square that fits ---------- */
+    .stage { flex: 1 1 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+    .board { position: relative; width: 300px; height: 300px; }
+    canvas {
+        width: 100%; height: 100%; display: block;
+        background-color: var(--canvas-bg);
+        transition: background-color 1.2s ease;
+        background-image:
+            linear-gradient(var(--grid) 1px, transparent 1px),
+            linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+        background-size: 5% 5%;
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 18px; box-sizing: border-box;
+        box-shadow: inset 0 0 25px rgba(0,0,0,0.35);
+    }
+
+    .overlay-msg {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
+        width: 80%; box-sizing: border-box; background: rgba(0,0,0,0.82); color: #fff;
+        padding: 16px 18px; border-radius: 18px; font-size: clamp(15px, 4.4vw, 20px); font-weight: 700; line-height: 1.4;
+        pointer-events: none; opacity: 0; transition: opacity 0.4s ease, transform 0.4s ease;
+        border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 15px 35px rgba(0,0,0,0.4); z-index: 10;
+    }
+    .overlay-msg.active { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    #start-hint { background: rgba(0,0,0,0.55); font-size: clamp(13px, 3.8vw, 16px); }
+
+    #game-over {
+        position: absolute; inset: 0; background: rgba(0,0,0,0.78);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        border-radius: 18px; display: none; flex-direction: column; align-items: center; justify-content: center;
+        color: #fff; z-index: 20; padding: 16px; box-sizing: border-box;
+    }
+    #game-over-quote { font-size: clamp(13px, 3.6vw, 16px); font-weight: 600; color: #ffd166; margin-bottom: 10px; line-height: 1.3; animation: fadeIn 0.6s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    #game-over h2 { font-size: clamp(24px, 7vw, 32px); margin: 0 0 8px; letter-spacing: 2px; color: #ff4d4d; }
+    .experience-badge { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); border-radius: 12px; padding: 7px 14px; margin: 6px 0; font-size: 14px; font-weight: 600; color: #e0fbfc; }
+    .high-score-tag { font-size: 13px; color: rgba(255,255,255,0.85); margin-bottom: 10px; }
+    #restart-msg { font-size: 14px; background: rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 20px; margin: 4px 0 0; transition: opacity 0.3s ease; }
+    #restart-msg.locked { opacity: 0.55; }
+
+    /* ---------- Arrow buttons (Buttons mode) ---------- */
+    .pad-wrap { flex: none; display: none; justify-content: center; padding-top: 12px; }
+    body[data-control="buttons"] .pad-wrap { display: flex; }
+    .d-pad {
+        --bs: clamp(58px, 17vw, 78px);
+        display: grid;
+        grid-template-columns: repeat(3, var(--bs));
+        grid-template-rows: repeat(2, var(--bs));
+        gap: 12px;
+    }
+    .d-btn {
+        background: rgba(255,255,255,0.22); border: 1px solid rgba(255,255,255,0.45);
+        border-radius: 20px; color: var(--text); font-size: 26px; font-weight: bold;
+        display: flex; align-items: center; justify-content: center; cursor: pointer;
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.4);
+        transition: transform 0.08s ease, background 0.08s ease;
+    }
+    .d-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.45); }
+    .up-btn { grid-column: 2; grid-row: 1; }
+    .left-btn { grid-column: 1; grid-row: 2; }
+    .down-btn { grid-column: 2; grid-row: 2; }
+    .right-btn { grid-column: 3; grid-row: 2; }
+
+    /* ---------- Floating joystick (appears where you touch) ---------- */
+    #joy {
+        position: fixed; width: 130px; height: 130px; margin: -65px 0 0 -65px; border-radius: 50%;
+        background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.35);
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        box-shadow: 0 0 30px rgba(0,0,0,0.18), inset 0 0 22px rgba(255,255,255,0.1);
+        opacity: 0; transform: scale(0.8); transition: opacity 0.15s ease, transform 0.15s ease;
+        pointer-events: none; z-index: 50;
+    }
+    #joy.on { opacity: 1; transform: scale(1); }
+    #knob {
+        position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.3));
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+        transform: translate(-50%, -50%);
+    }
+
+    @media (prefers-reduced-motion: reduce) { .bg span, .game-container::before { animation: none; } }
+</style>
+</head>
+<body data-control="keys">
+
+<div class="bg"><span></span><span></span><span></span><span></span><span></span></div>
+
+<div class="game-container" id="container">
+    <div class="header-bar">
+        <div class="score-board">🐍 Score: <span id="score">0</span></div>
+        <div class="lives-board" id="lives"></div>
+    </div>
+
+    <div class="controls-bar">
+        <span>Speed:</span>
+        <select id="speedSelect" aria-label="Speed">
+            <option value="7">🐢 Easy</option>
+            <option value="5" selected>🐍 Medium</option>
+            <option value="3">⚡ Hard</option>
+        </select>
+        <span>Mood:</span>
+        <select id="themeSelect" aria-label="Mood">
+            <option value="midnight">🌙 Midnight Calm</option>
+            <option value="blush">🌸 Blush Dawn</option>
+            <option value="flower">🌷 Flower Garden</option>
+            <option value="ocean">🌊 Ocean Breeze</option>
+            <option value="rose">💖 Rose Quartz</option>
+            <option value="iron">⚡ Iron Focus</option>
+        </select>
+        <span>Controls:</span>
+        <select id="controlSelect" aria-label="Controls">
+            <option value="joystick">🕹️ Joystick</option>
+            <option value="buttons">🎮 Buttons</option>
+            <option value="keys">⌨️ Keys</option>
+        </select>
+    </div>
+
+    <div class="stage" id="stage">
+        <div class="board" id="board">
+            <canvas id="game" width="400" height="400"></canvas>
+            <div id="start-hint" class="overlay-msg active"></div>
+            <div id="motivation-popup" class="overlay-msg"></div>
+            <div id="game-over">
+                <div id="game-over-quote"></div>
+                <h2>GAME OVER</h2>
+                <div class="experience-badge" id="exp-badge"></div>
+                <div class="high-score-tag">⭐ High Score: <span id="high-score">0</span></div>
+                <p id="restart-msg" class="locked"></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="pad-wrap">
+        <div class="d-pad">
+            <div class="d-btn up-btn" data-dir="U">▲</div>
+            <div class="d-btn left-btn" data-dir="L">◀</div>
+            <div class="d-btn down-btn" data-dir="D">▼</div>
+            <div class="d-btn right-btn" data-dir="R">▶</div>
+        </div>
+    </div>
+</div>
+
+<div id="joy"><div id="knob"></div></div>
+
+<script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const container = document.getElementById("container");
+    const stage = document.getElementById("stage");
+    const board = document.getElementById("board");
+    const scoreEl = document.getElementById("score");
+    const livesEl = document.getElementById("lives");
+    const speedSelect = document.getElementById("speedSelect");
+    const themeSelect = document.getElementById("themeSelect");
+    const controlSelect = document.getElementById("controlSelect");
+    const popupEl = document.getElementById("motivation-popup");
+    const hintEl = document.getElementById("start-hint");
+    const gameOverEl = document.getElementById("game-over");
+    const gameOverQuoteEl = document.getElementById("game-over-quote");
+    const expBadgeEl = document.getElementById("exp-badge");
+    const highScoreEl = document.getElementById("high-score");
+    const restartMsgEl = document.getElementById("restart-msg");
+
+    const grid = 20;
+    const MAX_LIVES = 3;
+    const HIT_PAUSE_MS = 2000;
+    const GAME_OVER_LOCK_MS = 4000;
+    const BONUS_EVERY = 25;
+
+    let score = 0, highScore = 0, lives = MAX_LIVES;
+    let count = 0, totalEaten = 0;
+    let started = false, isGameOver = false;
+    let pauseUntil = 0, gameOverUnlockAt = 0;
+    let nextBonusAt = BONUS_EVERY, nextMilestoneEaten = 0;
+    let unusedQuotes = [], inputQueue = [], popupTimer = null;
+    let controlMode = "keys";
+
+    const snake = { x: 160, y: 160, dx: grid, dy: 0, cells: [], maxCells: 4 };
+    const ball = { x: 320, y: 320 };
+
+    const gameOverMessages = [
+        "✨ Every restart is a fresh path forward.",
+        "🌱 Experience gained. Growth continues naturally.",
+        "🌅 Not an end, just a beautiful new beginning.",
+        "💡 Mistakes build mastery. Take a breath & try again!",
+        "🚀 Your journey isn't over, you're starting with experience.",
+        "🎨 Every attempt paints a wiser player.",
+        "🌟 Falling is just proof that you are climbing higher.",
+        "🧘 Serenity isn't avoiding loss, but rising calmly.",
+        "⚡ Every pause brings stronger focus.",
+        "🏆 Victory belongs to the persistent heart."
+    ];
+
+    const quotes = [
+        "Calmness is true strength.", "Peace begins within you.", "Stay grounded. Keep growing.",
+        "Let life unfold naturally.", "A quiet mind wins.", "Choose peace over chaos.",
+        "Breathe. Trust. Keep moving.", "Stillness holds its own power.", "Protect your inner peace.",
+        "Grace in every moment.",
+        "Every storm eventually passes.", "The sky clears again.", "Trust the changing seasons.",
+        "Even storms make way.", "Better days are unfolding.", "Let the clouds pass.",
+        "The sun always returns.", "Every ending opens doors.", "Grow through every season.",
+        "Trust the journey ahead.",
+        "Know yourself. Trust yourself.", "Your time will come.", "Walk with quiet confidence.",
+        "Believe in your becoming.", "Become who you envision.", "Let your growth speak.",
+        "Keep your standards high.", "You are becoming enough.", "Confidence needs no announcement.",
+        "Trust what you bring.",
+        "Patience makes room for greatness.", "Small steps create wonders.", "Let consistency shape success.",
+        "Focus brings things together.", "Good things take their time.", "Stay present. Keep progressing.",
+        "Inner peace, outer progress.", "The journey has meaning.", "Success begins with clarity.",
+        "Calm mind. Limitless possibilities."
+    ];
+
+    const THEMES = {
+        midnight: { base: 0,   span: 360, step: 20, sat: 80, light: 60, food: null, glow: "#ff3b6b" },
+        blush:    { base: 320, span: 80,  step: 8,  sat: 85, light: 68, food: null, glow: "#ff6b8b" },
+        flower:   { base: 100, span: 260, step: 14, sat: 70, light: 66, food: "🌸", glow: "#ff9ecb" },
+        ocean:    { base: 160, span: 90,  step: 8,  sat: 80, light: 62, food: "🐚", glow: "#90e0ef" },
+        rose:     { base: 300, span: 80,  step: 8,  sat: 85, light: 70, food: "💖", glow: "#ff8fab" },
+        iron:     { base: 30,  span: 160, step: 12, sat: 75, light: 58, food: "⚡", glow: "#e9c46a" }
+    };
+    let theme = THEMES.midnight;
+
+    const now = () => performance.now();
+    const isPaused = () => now() < pauseUntil;
+
+    /* ---------- Layout: biggest square playable area, no scrolling ---------- */
+    function fit() {
+        const s = Math.floor(Math.min(stage.clientWidth, stage.clientHeight));
+        if (s > 100) { board.style.width = s + "px"; board.style.height = s + "px"; }
+    }
+    new ResizeObserver(fit).observe(stage);
+    window.addEventListener("resize", fit);
+
+    /* ---------- Hearts, popups, milestones ---------- */
+    function renderHearts(wave) {
+        let html = "";
+        for (let i = 0; i < MAX_LIVES; i++) html += `<span class="heart">${i < lives ? "❤️" : "🖤"}</span>`;
+        livesEl.innerHTML = html;
+        livesEl.classList.remove("wave");
+        if (wave) {
+            void livesEl.offsetWidth;
+            livesEl.classList.add("wave");
+            setTimeout(() => livesEl.classList.remove("wave"), HIT_PAUSE_MS);
+        }
+    }
+
+    function nextGap() { return Math.floor(Math.random() * 8) + 6; } // random 6 to 13
+    function scheduleMilestone() { nextMilestoneEaten = totalEaten + nextGap(); }
+
+    function showPopup(text, ms, glowClass) {
+        pauseUntil = now() + ms;
+        popupEl.innerText = text;
+        popupEl.classList.add("active");
+        if (glowClass) container.classList.add(glowClass);
+        clearTimeout(popupTimer);
+        popupTimer = setTimeout(() => {
+            popupEl.classList.remove("active");
+            container.classList.remove("bonus");
+        }, ms);
+    }
+
+    function showQuote() {
+        if (unusedQuotes.length === 0) unusedQuotes = [...quotes];
+        const i = Math.floor(Math.random() * unusedQuotes.length);
+        showPopup(unusedQuotes.splice(i, 1)[0], 3500);
+    }
+
+    function loseLife(hitIndex) {
+        lives--;
+        try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {}
+        if (lives <= 0) { renderHearts(false); triggerGameOver(); return; }
+        snake.cells = snake.cells.slice(0, Math.max(4, hitIndex));
+        snake.maxCells = snake.cells.length;
+        inputQueue = [];
+        pauseUntil = now() + HIT_PAUSE_MS;
+        renderHearts(true);
+        container.classList.add("hit");
+        setTimeout(() => container.classList.remove("hit"), HIT_PAUSE_MS);
+    }
+
+    function triggerGameOver() {
+        isGameOver = true;
+        if (score > highScore) highScore = score;
+        highScoreEl.innerText = highScore;
+        gameOverQuoteEl.innerText = gameOverMessages[Math.floor(Math.random() * gameOverMessages.length)];
+        let badge = "🎖️ Experience: Mindful Explorer";
+        if (totalEaten >= 25) badge = "🏅 Experience: Master of Calm";
+        else if (totalEaten >= 15) badge = "🥇 Experience: Steady Climber";
+        else if (totalEaten >= 7) badge = "🥈 Experience: Focused Learner";
+        expBadgeEl.innerText = badge;
+        gameOverUnlockAt = now() + GAME_OVER_LOCK_MS;
+        inputQueue = [];
+        gameOverEl.style.display = "flex";
+    }
+
+    function updateGameOverText() {
+        const left = gameOverUnlockAt - now();
+        if (left > 0) {
+            restartMsgEl.classList.add("locked");
+            restartMsgEl.innerText = "Restart available in " + Math.ceil(left / 1000) + "…";
+        } else {
+            restartMsgEl.classList.remove("locked");
+            restartMsgEl.innerText = "Press any key or tap to restart";
+        }
+    }
+
+    /* ---------- Game state ---------- */
+    function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min)) + min; }
+
+    function placeBall() {
+        let x, y, tries = 0;
+        do {
+            x = getRandomInt(0, canvas.width / grid) * grid;
+            y = getRandomInt(0, canvas.height / grid) * grid;
+            tries++;
+        } while (tries < 100 && snake.cells.some(c => c.x === x && c.y === y));
+        ball.x = x; ball.y = y;
+    }
+
+    function startHintText() {
+        if (controlMode === "joystick") return "Touch the screen and slide to move. Slide to start!";
+        if (controlMode === "buttons") return "Tap an arrow button to start";
+        return "Press an arrow key or W A S D to start";
+    }
+
+    function resetGame() {
+        score = 0; lives = MAX_LIVES; totalEaten = 0; nextBonusAt = BONUS_EVERY;
+        unusedQuotes = [...quotes];
+        scheduleMilestone();
+        scoreEl.innerText = score;
+        renderHearts(false);
+        snake.x = 160; snake.y = 160; snake.dx = grid; snake.dy = 0; snake.maxCells = 4;
+        snake.cells = [0, 1, 2, 3].map(i => ({ x: 160 - i * grid, y: 160 }));
+        inputQueue = [];
+        isGameOver = false; started = false; pauseUntil = 0;
+        popupEl.classList.remove("active");
+        container.classList.remove("hit", "bonus");
+        gameOverEl.style.display = "none";
+        hintEl.innerText = startHintText();
+        hintEl.classList.add("active");
+        placeBall();
+    }
+
+    function enqueueDirection(dir) {
+        if (isGameOver) {
+            if (now() >= gameOverUnlockAt) resetGame();
+            return;
+        }
+        if (isPaused()) return;
+        if (!started) { started = true; hintEl.classList.remove("active"); }
+        if (inputQueue.length < 3) inputQueue.push(dir);
+    }
+
+    function handleEat() {
+        snake.maxCells++;
+        score += 10;
+        totalEaten++;
+        scoreEl.innerText = score;
+        placeBall();
+        if (totalEaten >= nextBonusAt) {
+            nextBonusAt += BONUS_EVERY;
+            if (lives < MAX_LIVES) {
+                lives++;
+                renderHearts(true);
+                showPopup("💖 Bonus life! Keep going", 2000, "bonus");
+                if (totalEaten >= nextMilestoneEaten) scheduleMilestone();
+                return;
+            }
+        }
+        if (totalEaten >= nextMilestoneEaten) { scheduleMilestone(); showQuote(); }
+    }
+
+    function step() {
+        if (inputQueue.length > 0) {
+            const d = inputQueue.shift();
+            if (d === 'L' && snake.dx === 0) { snake.dx = -grid; snake.dy = 0; }
+            if (d === 'U' && snake.dy === 0) { snake.dy = -grid; snake.dx = 0; }
+            if (d === 'R' && snake.dx === 0) { snake.dx = grid; snake.dy = 0; }
+            if (d === 'D' && snake.dy === 0) { snake.dy = grid; snake.dx = 0; }
+        }
+        snake.x += snake.dx;
+        snake.y += snake.dy;
+        if (snake.x < 0) snake.x = canvas.width - grid;
+        else if (snake.x >= canvas.width) snake.x = 0;
+        if (snake.y < 0) snake.y = canvas.height - grid;
+        else if (snake.y >= canvas.height) snake.y = 0;
+
+        snake.cells.unshift({ x: snake.x, y: snake.y });
+        if (snake.cells.length > snake.maxCells) snake.cells.pop();
+
+        if (snake.x === ball.x && snake.y === ball.y) handleEat();
+
+        for (let i = 4; i < snake.cells.length; i++) {
+            if (snake.cells[i].x === snake.x && snake.cells[i].y === snake.y) { loseLife(i); break; }
+        }
+    }
+
+    /* ---------- Drawing: a real snake ---------- */
+    function drawFood() {
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = theme.glow;
+        if (theme.food) {
+            ctx.font = "18px serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(theme.food, ball.x + grid / 2, ball.y + grid / 2 + 1);
+        } else {
+            ctx.fillStyle = theme.glow;
+            ctx.beginPath();
+            ctx.arc(ball.x + grid / 2, ball.y + grid / 2, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.shadowBlur = 0;
+    }
+
+    function drawSnake() {
+        const cells = snake.cells, n = cells.length;
+        if (!n) return;
+        const t = Date.now() / 40; // slow, calm color drift
+        const color = i => `hsl(${(theme.base + ((i * theme.step + t) % theme.span)) % 360}, ${theme.sat}%, ${theme.light}%)`;
+        const half = grid / 2;
+        ctx.lineCap = "round";
+
+        for (let i = n - 1; i >= 0; i--) {
+            const c = cells[i];
+            const cx = c.x + half, cy = c.y + half;
+            const r = i === 0 ? 10.5 : 9 - 4 * (i / n); // tail gets thinner
+            const col = color(i);
+            if (i < n - 1) {
+                const p = cells[i + 1];
+                if (Math.abs(p.x - c.x) <= grid && Math.abs(p.y - c.y) <= grid) { // skip wrap-around jumps
+                    ctx.strokeStyle = col;
+                    ctx.lineWidth = r * 2;
+                    ctx.beginPath();
+                    ctx.moveTo(p.x + half, p.y + half);
+                    ctx.lineTo(cx, cy);
+                    ctx.stroke();
+                }
+            }
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "rgba(255,255,255,0.2)";
+            ctx.beginPath();
+            ctx.arc(cx - r * 0.25, cy - r * 0.3, r * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // head: tongue and eyes
+        const h = cells[0], hx = h.x + half, hy = h.y + half;
+        const ux = Math.sign(snake.dx), uy = Math.sign(snake.dy);
+        const px = -uy, py = ux;
+        if (Math.floor(Date.now() / 450) % 4 === 0) {
+            ctx.strokeStyle = "#ff3b5c";
+            ctx.lineWidth = 1.8;
+            const tx = hx + ux * 17, ty = hy + uy * 17;
+            ctx.beginPath();
+            ctx.moveTo(hx + ux * 10, hy + uy * 10);
+            ctx.lineTo(tx, ty);
+            ctx.moveTo(tx, ty); ctx.lineTo(tx + ux * 4 + px * 3, ty + uy * 4 + py * 3);
+            ctx.moveTo(tx, ty); ctx.lineTo(tx + ux * 4 - px * 3, ty + uy * 4 - py * 3);
+            ctx.stroke();
+        }
+        for (const side of [-1, 1]) {
+            const ex = hx + ux * 3.5 + px * 4.6 * side, ey = hy + uy * 3.5 + py * 4.6 * side;
+            ctx.fillStyle = "#fff";
+            ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#111";
+            ctx.beginPath(); ctx.arc(ex + ux * 0.9, ey + uy * 0.9, 1.5, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawFood();
+        const hitPause = container.classList.contains("hit") && isPaused();
+        ctx.globalAlpha = hitPause && Math.sin(now() / 90) > 0 ? 0.35 : 1;
+        drawSnake();
+        ctx.globalAlpha = 1;
+    }
+
+    function loop() {
+        requestAnimationFrame(loop);
+        if (isGameOver) updateGameOverText();
+        const gameSpeed = parseInt(speedSelect.value);
+        if (++count < gameSpeed) return;
+        count = 0;
+        if (!isGameOver && started && !isPaused()) step();
+        draw();
+    }
+
+    /* ---------- Controls: keyboard (always on) ---------- */
+    document.addEventListener("keydown", e => {
+        const key = e.key.toLowerCase();
+        const nav = ["arrowleft", "arrowup", "arrowright", "arrowdown", "w", "a", "s", "d", " "];
+        if (nav.includes(key)) e.preventDefault();
+        if (isGameOver) {
+            if (!e.repeat && nav.includes(key) && now() >= gameOverUnlockAt) resetGame();
+            return;
+        }
+        if (key === "arrowleft" || key === "a") enqueueDirection("L");
+        if (key === "arrowup" || key === "w") enqueueDirection("U");
+        if (key === "arrowright" || key === "d") enqueueDirection("R");
+        if (key === "arrowdown" || key === "s") enqueueDirection("D");
+    });
+
+    /* ---------- Controls: on-screen arrow buttons (touch or mouse click) ---------- */
+    document.querySelectorAll(".d-btn").forEach(btn => {
+        btn.addEventListener("pointerdown", e => { e.preventDefault(); enqueueDirection(btn.dataset.dir); });
+    });
+
+    /* ---------- Controls: floating joystick (appears where you touch) ---------- */
+    const joy = document.getElementById("joy");
+    const knob = document.getElementById("knob");
+    const JOY_R = 40, JOY_DEAD = 14;
+    let joyId = null, ox = 0, oy = 0, lastDir = null;
+
+    document.addEventListener("pointerdown", e => {
+        if (controlMode !== "joystick" || joyId !== null) return;
+        if (e.target.closest("select, button, .d-pad, #game-over")) return;
+        joyId = e.pointerId; ox = e.clientX; oy = e.clientY; lastDir = null;
+        joy.style.left = ox + "px"; joy.style.top = oy + "px";
+        knob.style.transform = "translate(-50%, -50%)";
+        joy.classList.add("on");
+    });
+
+    document.addEventListener("pointermove", e => {
+        if (e.pointerId !== joyId) return;
+        let dx = e.clientX - ox, dy = e.clientY - oy, dist = Math.hypot(dx, dy);
+        if (dist > JOY_R) { // the ring follows your thumb, so turning stays easy
+            const k = (dist - JOY_R) / dist;
+            ox += dx * k; oy += dy * k;
+            dx = e.clientX - ox; dy = e.clientY - oy; dist = JOY_R;
+            joy.style.left = ox + "px"; joy.style.top = oy + "px";
+        }
+        knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        if (dist >= JOY_DEAD) {
+            const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "R" : "L") : (dy > 0 ? "D" : "U");
+            if (dir !== lastDir) { lastDir = dir; enqueueDirection(dir); }
+        }
+    });
+
+    function joyEnd(e) {
+        if (e.pointerId !== joyId) return;
+        joyId = null;
+        joy.classList.remove("on");
+    }
+    document.addEventListener("pointerup", joyEnd);
+    document.addEventListener("pointercancel", joyEnd);
+
+    gameOverEl.addEventListener("click", () => { if (isGameOver && now() >= gameOverUnlockAt) resetGame(); });
+
+    /* ---------- Block page zoom, scroll and long-press menus ---------- */
+    document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+    document.addEventListener("gesturestart", e => e.preventDefault());
+    document.addEventListener("dblclick", e => e.preventDefault());
+    document.addEventListener("contextmenu", e => e.preventDefault());
+
+    /* ---------- Settings: mood and controls (remembered) ---------- */
+    function applyTheme(key) {
+        if (!THEMES[key]) key = "midnight";
+        theme = THEMES[key];
+        document.body.dataset.theme = key;
+        themeSelect.value = key;
+        try { localStorage.setItem("dreamyMood", key); } catch (e) {}
+    }
+
+    function applyControl(mode) {
+        if (!["joystick", "buttons", "keys"].includes(mode)) mode = "keys";
+        controlMode = mode;
+        document.body.dataset.control = mode;
+        controlSelect.value = mode;
+        if (!started && !isGameOver) hintEl.innerText = startHintText();
+        try { localStorage.setItem("dreamyControl", mode); } catch (e) {}
+    }
+
+    themeSelect.addEventListener("change", () => { applyTheme(themeSelect.value); themeSelect.blur(); });
+    controlSelect.addEventListener("change", () => { applyControl(controlSelect.value); controlSelect.blur(); });
+    speedSelect.addEventListener("change", () => speedSelect.blur());
+
+    let savedMood = null, savedControl = null;
+    try { savedMood = localStorage.getItem("dreamyMood"); savedControl = localStorage.getItem("dreamyControl"); } catch (e) {}
+    const isTouch = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+    applyTheme(savedMood || "midnight");
+    resetGame();
+    applyControl(savedControl || (isTouch ? "joystick" : "keys"));
+    fit();
+    requestAnimationFrame(loop);
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    }
+</script>
+</body>
+</html>
